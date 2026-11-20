@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gêmeo Digital do Rotor</title>
+<meta name="description" content="Gêmeo digital do rotor de helicóptero: sensores das 4 peças, modelo TQM previsto × medido e decisão integrada no ERP. Equipe F-ATLAS, Fatec São José dos Campos.">
+<meta property="og:title" content="Gêmeo Digital do Rotor · F-ATLAS">
+<meta property="og:description" content="Sensores, modelo TQM e ERP integrados: do rotor real à decisão.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://f-atlas-team.github.io/rotor/">
+<style>[hidden]{display:none!important} body{margin:0}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: painel de engenharia escuro, no estilo dos infográficos do Prof. Bandeira — faixa-título com o rotor 3D, esteira dos 5 passos do gêmeo digital, seções numeradas com barra azul */
+:root{
+  --bg:#06101d; --bg2:#0b1a2e; --panel:#0e2038; --panel2:#11284a; --line:#1f3d63; --band:#1a4f8f; --band2:#123a6b;
+  --ink:#eaf2fb; --muted:#93a9c4; --cyan:#3fc3ff; --blue:#4c8dff; --red:#ff5a4e; --amber:#ffb627; --green:#3ddc84;
+  --ok:#3ddc84; --warn:#ffb627; --crit:#ff5a4e;
+  --font-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif; --font-body:"Barlow",system-ui,sans-serif; --font-data:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{background:radial-gradient(1200px 600px at 80% -10%,#15345e 0%,transparent 60%),var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.45}
+.wrap{max-width:1320px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 32px;display:flex;flex-direction:column;gap:16px}
+/* faixa-título */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:18px;align-items:stretch;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:linear-gradient(135deg,#0d2240 0%,#081527 70%)}
+.hero-txt{padding:24px 26px;display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--font-data);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+h1{font-family:var(--font-display);font-weight:800;font-size:clamp(34px,4.6vw,58px);line-height:.95;margin:0;text-transform:uppercase;letter-spacing:.01em}
+h1 span{color:var(--cyan)}
+.tagline{font-family:var(--font-display);font-weight:600;font-size:18px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0}
+.lead{color:#c6d5e7;margin:0;max-width:52ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--font-data);font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:4px 10px;background:rgba(10,25,45,.6)}
+.cmd{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:auto}
+button{font-family:var(--font-body);font-size:13.5px;font-weight:600;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 13px;cursor:pointer}
+button:hover{border-color:var(--cyan)}
+button:focus-visible,input:focus-visible,.part:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+button.primary{background:linear-gradient(180deg,#2f8cff,#1d63d6);border-color:#3d97ff;color:#fff;min-width:108px;box-shadow:0 0 18px rgba(63,140,255,.35)}
+button.seg[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan);background:rgba(63,195,255,.08)}
+button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.clock{font-family:var(--font-data);font-size:12.5px;padding:7px 11px;border-radius:8px;background:rgba(6,16,29,.7);border:1px solid var(--line);color:var(--muted)}
+.clock b{font-size:16px;color:var(--ink);font-weight:600}
+#scene{position:relative;min-height:440px;background:radial-gradient(70% 70% at 55% 45%,#173a66 0%,#0a1b31 55%,#06101d 100%)}
+#scene canvas{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.hud{position:absolute;font-family:var(--font-data);font-size:11px;color:var(--muted);pointer-events:none}
+.hud.tl{left:14px;top:12px;letter-spacing:.1em;text-transform:uppercase}
+.hud.tr{right:14px;top:12px}
+.ramp{position:absolute;right:14px;bottom:14px;width:150px;pointer-events:none;font-family:var(--font-data);font-size:10.5px;color:var(--muted)}
+.ramp i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,#1e4dff,#18c8ff,#3ddc84,#ffd23f,#ff5a4e);margin:4px 0 2px}
+.ramp div{display:flex;justify-content:space-between}
+.aog{position:absolute;left:14px;right:14px;bottom:52px;display:none;padding:10px 12px;border-radius:8px;background:rgba(120,20,16,.85);border:1px solid var(--crit);color:#fff;font-weight:600;font-size:13px}
+/* esteira do gêmeo digital */
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:22px;position:relative}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative;min-width:0}
+.stage:not(:last-child)::after{content:"";position:absolute;right:-17px;top:50%;width:12px;height:12px;border-top:3px solid var(--cyan);border-right:3px solid var(--cyan);transform:translateY(-50%) rotate(45deg);filter:drop-shadow(0 0 4px var(--cyan))}
+.stage .hd{background:linear-gradient(180deg,var(--band),var(--band2));font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase;text-align:center;padding:6px 8px}
+.stage .bd{display:flex;gap:10px;align-items:center;padding:10px 12px}
+.stage svg{flex:none;width:34px;height:34px;color:var(--cyan)}
+.stage .v{font-family:var(--font-data);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage .s{font-size:12px;color:var(--muted)}
+.stage.live{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(63,195,255,.35),0 0 22px rgba(63,195,255,.18)}
+.stage.alert{border-color:var(--warn);box-shadow:0 0 18px rgba(255,182,39,.25)}
+.stage.alarm{border-color:var(--crit);box-shadow:0 0 18px rgba(255,90,78,.35)}
+/* seções numeradas */
+.sec{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:0}
+.sec-hd{display:flex;align-items:center;gap:12px;padding:8px 14px;background:linear-gradient(90deg,var(--band) 0%,var(--band2) 70%,transparent 100%)}
+.num{width:30px;height:30px;border-radius:50%;background:#fff;color:#0f3a70;font-family:var(--font-display);font-weight:800;font-size:19px;display:grid;place-items:center;flex:none}
+.sec-hd h2{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:.05em;text-transform:uppercase;margin:0;line-height:1.1}
+.sec-hd p{margin:0;font-size:12.5px;color:#cfe0f5}
+.sec-bd{padding:14px}
+/* peças */
+.parts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.part{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;display:flex;flex-direction:column;gap:4px;cursor:pointer;min-width:0;position:relative}
+.part::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;border-radius:10px 10px 0 0;background:var(--ok)}
+.part[data-st="warn"]::before{background:var(--warn)}.part[data-st="crit"]::before{background:var(--crit)}
+.part[data-st="warn"]{box-shadow:0 0 16px rgba(255,182,39,.18)}.part[data-st="crit"]{box-shadow:0 0 18px rgba(255,90,78,.3)}
+.part.sel{border-color:var(--cyan)}
+.part h3{min-height:40px;font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:.03em;text-transform:uppercase;margin:4px 0 0;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.pill{font-family:var(--font-data);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.pill.ok{background:rgba(61,220,132,.14);color:var(--ok)}.pill.warn{background:rgba(255,182,39,.16);color:var(--warn)}.pill.crit{background:rgba(255,90,78,.18);color:var(--crit)}
+.sn{font-family:var(--font-data);font-size:10.5px;color:var(--muted)}
+.gauge{width:100%;max-width:190px;height:104px;display:block;margin:2px auto 0}
+.sl{font-size:12px;color:var(--muted);text-align:center;margin-top:-4px}
+.life{font-family:var(--font-data);font-size:11.5px;text-align:center;color:#cfe0f5}
+.part button{padding:6px 8px;font-size:12px;margin-top:6px;background:transparent}
+.part button.on{background:rgba(255,90,78,.14);border-color:var(--crit);color:#ffb3ad}
+/* comparação + modelo */
+.duo{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+.chart{width:100%;height:190px;display:block}
+.ckey{display:flex;gap:16px;font-size:12px;color:var(--muted);flex-wrap:wrap;margin:2px 0 6px}
+.ckey span{display:flex;gap:6px;align-items:center}
+.ckey i{width:20px;height:0;border-top:2px solid;display:inline-block}
+.sub-hd{font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 2px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.sub-hd small{font-family:var(--font-data);font-weight:400;font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0}
+.gapline{font-family:var(--font-data);font-size:12.5px;margin-top:6px}
+.tqm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kv{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.kv .k{font-size:11.5px;color:var(--muted)}
+.kv .v{font-family:var(--font-data);font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
+.kv .v small{font-size:11px;color:var(--muted)}
+.kv.hl{border-color:var(--cyan)}
+.kv.hl .v{color:var(--cyan)}
+.formula{background:#0a1a30;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--font-data);font-size:12.5px;line-height:1.7;margin-top:10px;color:#d8e6f6}
+.formula b{color:var(--cyan);font-weight:500}
+.sliders{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.sliders .r{display:grid;grid-template-columns:70px minmax(0,1fr) 72px;align-items:center;gap:8px}
+.sliders label{font-size:12.5px;color:var(--muted)}
+.sliders output{font-family:var(--font-data);font-size:13px;text-align:right}
+input[type=range]{accent-color:var(--cyan);width:100%}
+/* ERP */
+.erp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;align-items:start}
+.hub{width:100%;max-width:440px;display:block;margin:0 auto}
+.hub .mod rect{fill:#0d2342;stroke:var(--line);stroke-width:1.2;transition:fill .3s,stroke .3s}
+.hub .mod text{fill:#d8e6f6;font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:.04em;text-transform:uppercase}
+.hub .mod .s{fill:#a9bed6;font-family:var(--font-body);font-weight:500;font-size:13.5px;text-transform:none;letter-spacing:0}
+.hub .spoke{stroke:var(--line);stroke-width:1.5;transition:stroke .3s}
+.hub .mod.lit rect{fill:#13406f;stroke:var(--cyan)}
+.hub .spoke.lit{stroke:var(--cyan);filter:drop-shadow(0 0 3px var(--cyan))}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.kpi{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.kpi .k{font-size:11px;color:var(--muted);line-height:1.25}
+.kpi .v{font-family:var(--font-data);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi.good .v{color:var(--ok)}.kpi.bad .v{color:var(--crit)}
+h4{font-family:var(--font-display);font-weight:700;font-size:14px;letter-spacing:.05em;text-transform:uppercase;margin:12px 0 6px;color:#cfe0f5}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.feed li{font-size:12.5px;display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;padding:5px 8px;border-radius:6px;background:var(--bg2);border-left:3px solid var(--blue)}
+.feed li.w{border-left-color:var(--warn)}.feed li.c{border-left-color:var(--crit)}.feed li.g{border-left-color:var(--ok)}
+.feed li time{font-family:var(--font-data);font-size:11.5px;color:var(--muted)}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;font-weight:600;border-bottom:1px solid var(--line);padding:6px}
+td{border-bottom:1px solid var(--line);padding:6px;vertical-align:top}
+td.mono{font-family:var(--font-data);font-size:11.5px}
+td button{padding:5px 10px;font-size:12px;background:linear-gradient(180deg,#2f8cff,#1d63d6);border-color:#3d97ff}
+.empty{color:var(--muted);font-size:12.5px;padding:6px 0}
+.stock{display:flex;flex-wrap:wrap;gap:6px}
+.stock span{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:var(--bg2)}
+.stock b{font-family:var(--font-data);color:var(--cyan)}
+.stock span.zero b{color:var(--crit)}
+footer{color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
+footer b{font-family:var(--font-display);letter-spacing:.06em;text-transform:uppercase;color:#cfe0f5}
+
+/* ===== modo painel: tudo numa tela, ajustado ao tamanho do monitor ou da TV ===== */
+.fl{font-size:11.5px;color:var(--muted);text-align:center;line-height:1.3;margin-top:2px}
+body.painel{overflow:hidden;height:100vh;background:var(--bg)}
+body.painel .wrap{position:fixed;width:1920px;height:1080px;max-width:none;margin:0;padding:16px 20px;box-sizing:border-box;transform-origin:0 0;
+  display:grid;grid-template-columns:27fr 41fr 32fr;grid-template-rows:auto auto minmax(0,1fr) minmax(0,1fr);gap:12px;
+  grid-template-areas:"top top top" "flow flow erp" "scene parts erp" "tqm charts erp"}
+body.painel .hero,body.painel .duo{display:contents}
+body.painel .hero-txt{grid-area:top;flex-direction:row;align-items:center;gap:20px;padding:10px 18px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(90deg,#0d2240,#081527)}
+body.painel .hero-txt .tagline,body.painel .hero-txt .lead,body.painel .hero-txt .chips{display:none}
+body.painel .hero-txt h1{font-size:40px;line-height:1;white-space:nowrap}
+body.painel .hero-txt h1 br{display:none}
+body.painel .hero-txt .eyebrow{writing-mode:horizontal-tb;max-width:150px;line-height:1.3}
+body.painel .cmd{margin:0 0 0 auto;flex-wrap:nowrap}
+body.painel #scene{grid-area:scene;min-height:0;border:1px solid var(--line);border-radius:12px}
+body.painel .flow{grid-area:flow;gap:26px;grid-template-columns:repeat(5,minmax(0,1fr))}
+body.painel .stage:not(:last-child)::after{display:block}
+body.painel .stage .hd{font-size:14px;padding:4px 8px}
+body.painel .stage .bd{padding:7px 12px;gap:10px}
+body.painel .stage svg{width:28px;height:28px}
+body.painel .stage .v{font-size:15px}
+body.painel .stage .s{font-size:11.5px}
+body.painel #secPecas{grid-area:parts}
+body.painel #secComp{grid-area:charts}
+body.painel #secTqm{grid-area:tqm}
+body.painel #secErp{grid-area:erp}
+body.painel footer{display:none}
+body.painel .sec{display:flex;flex-direction:column;min-height:0}
+body.painel .sec-hd{padding:6px 12px;gap:10px}
+body.painel .sec-hd p{display:none}
+body.painel .num{width:26px;height:26px;font-size:16px}
+body.painel .sec-hd h2{font-size:17px}
+body.painel .sec-bd{flex:1;min-height:0;padding:10px 12px;overflow:auto}
+body.painel .parts{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;height:100%}
+body.painel .part{padding:8px 8px 10px;justify-content:space-between}
+body.painel .part h3{font-size:14px;min-height:56px;margin-top:2px;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:4px}
+body.painel .part .sn{font-size:10px}
+body.painel .part .sl,body.painel .part .life{font-size:11px}
+body.painel .part button{font-size:11.5px;padding:5px 6px;margin-top:4px}
+body.painel .gauge{max-width:100%;width:100%;height:auto}
+body.painel #secComp .sec-bd{display:flex;flex-direction:column;gap:2px;overflow:hidden}
+body.painel #secComp .chart{flex:1 1 0;height:0;min-height:0}
+body.painel #secComp .sub-hd{font-size:13px}
+body.painel #secComp .ckey{margin:0 0 2px;font-size:11px}
+body.painel .gapline{font-size:11.5px;margin:2px 0 4px}
+body.painel .sliders{gap:4px;margin-bottom:6px}
+body.painel .tqm{gap:6px}
+body.painel .kv{padding:5px 9px}
+body.painel .kv .k{font-size:11px}
+body.painel .kv .v{font-size:15px}
+body.painel .formula{font-size:11.5px;line-height:1.55;padding:7px 10px;margin-top:6px}
+body.painel .erp{grid-template-columns:minmax(0,1fr);gap:8px}
+body.painel .hub{max-height:400px;max-width:500px}
+body.painel .kpis{margin-bottom:6px;gap:6px}
+body.painel .kpi{padding:6px 8px}
+body.painel .kpi .v{font-size:16px}
+body.painel h4{margin:8px 0 4px;font-size:13px}
+body.painel .feed li{font-size:11.5px;padding:3px 6px}
+body.painel table{font-size:11.5px}
+body.painel td,body.painel th{padding:4px}
+body.painel #secErp .erp>div:first-child{order:2}
+
+/* letras maiores no modo painel */
+body.painel{font-size:15px}
+body.painel .hero-txt h1{font-size:48px}
+body.painel button{font-size:15px}
+body.painel .clock{font-size:14px}
+body.painel .clock b{font-size:18px}
+body.painel .stage .hd{font-size:16px}
+body.painel .stage .v{font-size:18px}
+body.painel .stage .s{font-size:13.5px}
+body.painel .sec-hd h2{font-size:21px}
+body.painel .num{width:30px;height:30px;font-size:18px}
+body.painel .part h3{font-size:17px;min-height:60px}
+body.painel .pill{font-size:11.5px}
+body.painel .part .sn{font-size:11.5px}
+body.painel .part .sl,body.painel .part .life,body.painel .fl{font-size:13.5px}
+body.painel .part button{font-size:13.5px;padding:6px}
+body.painel .sliders label{font-size:15px}
+body.painel .sliders output{font-size:16px}
+body.painel .kv .k{font-size:13.5px}
+body.painel .kv .v{font-size:19px}
+body.painel .formula{font-size:13.5px}
+body.painel #secComp .sub-hd{font-size:16px}
+body.painel #secComp .sub-hd small{font-size:13px}
+body.painel #secComp .ckey{font-size:13.5px}
+body.painel .gapline{font-size:14px}
+body.painel .kpi .k{font-size:13.5px}
+body.painel .kpi .v{font-size:21px}
+body.painel h4{font-size:16px}
+body.painel .feed li{font-size:14px;grid-template-columns:70px minmax(0,1fr)}
+body.painel .feed li time{font-size:13px}
+body.painel table{font-size:14px}
+body.painel th{font-size:12px}
+body.painel td.mono{font-size:13px}
+body.painel .stock span{font-size:14px}
+body.painel .hud{font-size:13px}
+body.painel .hud.tr{display:none}
+body.painel .ramp{font-size:12.5px;width:180px}
+body.painel #secTqm .formula{display:none}
+body.painel .sliders .r{grid-template-columns:70px minmax(0,1fr) 92px}
+body.painel .part h3{min-height:44px}
+body.painel .part{gap:2px}
+body.painel .gauge{max-width:170px;margin:0 auto}
+body.painel .gauge{margin-top:0}
+body.painel .flow{gap:22px}
+body.painel .stage .s{display:none}
+body.painel .hub{max-height:300px;max-width:440px}
+body.painel .feed li:nth-child(n+5){display:none}
+body.painel .kpi .k{line-height:1.2}
+
+/* indicadores clicáveis: acendem a parte da página ligada a eles */
+.stage{cursor:pointer;transition:transform .15s}
+.stage:hover{transform:translateY(-2px);border-color:var(--cyan)}
+.stage:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@keyframes alvo{0%{box-shadow:0 0 0 0 rgba(63,195,255,0)}25%{box-shadow:0 0 0 4px rgba(63,195,255,.95),0 0 40px rgba(63,195,255,.6)}100%{box-shadow:0 0 0 0 rgba(63,195,255,0)}}
+.alvo{animation:alvo 1.2s ease-out 2;border-color:var(--cyan)!important;position:relative}
+@media (prefers-reduced-motion:reduce){.alvo{animation:none;box-shadow:0 0 0 4px rgba(63,195,255,.95)}}
+
+/* ERP ocupa a coluna inteira, com o diagrama grande */
+body.painel #secErp .sec-bd{display:flex;flex-direction:column}
+body.painel #secErp .erp{display:flex;flex-direction:column;flex:1;min-height:0}
+body.painel #secErp .erp>div:first-child{order:2;flex:1;min-height:0;display:flex;flex-direction:column}
+body.painel #secErp .hub{flex:1;min-height:180px;width:100%;height:100%;max-width:none;max-height:none}
+body.painel .part .sn,body.painel .fl{display:none}
+body.painel .part h3{min-height:40px}
+body.painel .wrap{padding:12px 16px;gap:10px}
+body.painel .kv-x{display:none}
+body.painel .feed li:nth-child(n+4){display:none}
+body.painel #secErp .hub{min-height:230px}
+
+/* faixa do título no painel: equipe grande + frase no espaço livre */
+body.painel .hero-txt .eyebrow{max-width:none;white-space:nowrap;font-size:14px;letter-spacing:.2em;line-height:1.1;display:flex;flex-direction:column;padding-right:22px;border-right:2px solid var(--line)}
+body.painel .hero-txt .eyebrow .eqp{font-family:var(--font-display);font-weight:800;font-size:40px;letter-spacing:.04em;color:var(--ink);line-height:1}
+body.painel .hero-txt .tagline{display:block;flex:1;text-align:center;font-size:22px;letter-spacing:.12em;white-space:nowrap;color:var(--cyan);opacity:.9}
+body.painel .hero-txt h1{font-size:52px}
+body.painel .cmd{margin-left:0;flex:none}
+body.painel .cmd button,body.painel .clock{white-space:nowrap}
+body.painel .hero-txt h1{font-size:48px;flex:none}
+body.painel .hero-txt .eyebrow{flex:none}
+body.painel .hero-txt .tagline{min-width:0;font-size:18px;letter-spacing:.08em;white-space:normal;line-height:1.15;text-wrap:balance;max-height:2.35em;overflow:hidden}
+body.painel .hero-txt{height:74px;box-sizing:border-box;padding-block:6px}
+body.painel.estreito .hero-txt .tagline{display:none}
+body.painel.estreito .cmd{margin-left:auto}
+@media (max-width:1100px){.parts{grid-template-columns:repeat(3,minmax(0,1fr))}.flow{grid-template-columns:repeat(3,minmax(0,1fr))}.stage:nth-child(3)::after{display:none}}
+@media (max-width:900px){.hero,.duo,.erp{grid-template-columns:minmax(0,1fr)}#scene{min-height:340px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.parts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.flow{grid-template-columns:minmax(0,1fr);gap:14px}.stage::after{display:none}.hero-txt{padding:18px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<section class="hero">
+  <div class="hero-txt">
+    <div class="eyebrow"><b class="eqp">F-ATLAS</b> Engenharia Digital</div>
+    <h1>Gêmeo digital <br>do <span>rotor</span></h1>
+    <p class="tagline">Do projeto à operação segura</p>
+    <p class="lead">Sensores no rotor real, teoria da quantidade de movimento no modelo virtual e a diferença entre os dois virando decisão no ERP, antes da falha.</p>
+    <div class="chips"><span class="chip">Helicóptero classe Esquilo</span><span class="chip">Rotor de 10,69 m</span><span class="chip">Dados simulados</span></div>
+    <div class="cmd">
+      <button id="play" class="primary">▶ Voar</button>
+      <button class="seg" data-sp="2" aria-pressed="false">2 h/s</button>
+      <button class="seg" data-sp="10" aria-pressed="true">10 h/s</button>
+      <button class="seg" data-sp="40" aria-pressed="false">40 h/s</button>
+      <span class="clock">Horas de voo <b id="horas">0</b></span>
+      <button id="reset">Recomeçar</button>
+    </div>
+  </div>
+  <div id="scene" aria-label="Rotor principal em 3D, colorido pela vida consumida de cada peça">
+    <div class="hud tl">Rotor real · vista 3D</div>
+    <div class="hud tr">arraste para girar · toque numa peça</div>
+    <div class="aog" id="aog" role="alert"></div>
+    <div class="ramp"><span>Vida consumida</span><i></i><div><span>0%</span><span>50%</span><span>100%</span></div></div>
+  </div>
+</section>
+
+<section class="flow" aria-label="Os cinco passos do gêmeo digital">
+  <div class="stage" id="st1"><div class="hd">Rotor real</div><div class="bd">
+    <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="17" cy="17" r="3.5"/><path d="M17 13.5V2M20.5 17H32M17 20.5V32M13.5 17H2"/></svg>
+    <div style="min-width:0"><div class="v" id="f1">5 sensores</div><div class="s">vibração, deformação, temperatura</div></div></div></div>
+  <div class="stage" id="st2"><div class="hd">Dados reais</div><div class="bd">
+    <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><ellipse cx="17" cy="7" rx="11" ry="4"/><path d="M6 7v20c0 2.2 4.9 4 11 4s11-1.8 11-4V7M6 17c0 2.2 4.9 4 11 4s11-1.8 11-4"/></svg>
+    <div style="min-width:0"><div class="v" id="f2">0 leituras</div><div class="s">aquisição e tratamento</div></div></div></div>
+  <div class="stage" id="st3"><div class="hd">Modelo virtual</div><div class="bd">
+    <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 3l12 7v14l-12 7-12-7V10z"/><path d="M5 10l12 7 12-7M17 17v14"/></svg>
+    <div style="min-width:0"><div class="v" id="f3">FM 0,780</div><div class="s">TQM, CAD/CAE</div></div></div></div>
+  <div class="stage" id="st4"><div class="hd">Comparação</div><div class="bd">
+    <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 26c6-1 9-8 14-8s8 4 14-2" stroke-dasharray="3 3"/><path d="M3 28c6-1 9-12 14-12s9 6 14 0" stroke="#ff5a4e"/><path d="M3 4v27h28"/></svg>
+    <div style="min-width:0"><div class="v" id="f4">Δ 0 kW</div><div class="s">previsto × medido</div></div></div></div>
+  <div class="stage" id="st5"><div class="hd">Decisão</div><div class="bd">
+    <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="17" cy="17" r="5"/><path d="M17 3v5M17 26v5M3 17h5M26 17h5M7.1 7.1l3.5 3.5M23.4 23.4l3.5 3.5M7.1 26.9l3.5-3.5M23.4 10.6l3.5-3.5"/></svg>
+    <div style="min-width:0"><div class="v" id="f5">0 ordens</div><div class="s">manutenção preditiva</div></div></div></div>
+</section>
+
+<section class="sec" id="secPecas">
+  <div class="sec-hd"><div class="num">1</div><div><h2>Saúde das peças</h2><p>As 4 peças do trabalho, mais as pás como complemento do modelo TQM. Cada uma tem número de série, sensor e vida restante estimada</p></div></div>
+  <div class="sec-bd"><div class="parts" id="parts"></div></div>
+</section>
+
+<div class="duo">
+  <section class="sec" id="secComp">
+    <div class="sec-hd"><div class="num">2</div><div><h2>Comparação: previsto × medido</h2><p>Quando as curvas se separam, algo mudou no rotor</p></div></div>
+    <div class="sec-bd">
+      <div class="sub-hd">Potência no pairado <small>kW por hora de voo</small></div>
+      <div class="ckey"><span><i style="border-color:var(--blue);border-top-style:dashed"></i>previsto pelo modelo</span><span><i style="border-color:var(--red)"></i>medido no rotor</span></div>
+      <canvas class="chart" id="cPow" role="img" aria-label="Potência prevista e medida ao longo das horas de voo"></canvas>
+      <div class="gapline" id="tGap"></div>
+      <div class="sub-hd" style="margin-top:14px"><span id="cSensTitle">Sensor</span> <small id="cSensUnit"></small></div>
+      <div class="ckey"><span><i style="border-color:var(--cyan)"></i>leitura</span><span><i style="border-color:var(--warn);border-top-style:dashed"></i>limite de atenção</span><span><i style="border-color:var(--crit);border-top-style:dashed"></i>limite crítico</span></div>
+      <canvas class="chart" id="cSens" role="img" aria-label="Leitura do sensor da peça selecionada"></canvas>
+    </div>
+  </section>
+  <section class="sec" id="secTqm">
+    <div class="sec-hd"><div class="num">3</div><div><h2>Modelo virtual: TQM</h2><p>O rotor como disco atuador no voo pairado</p></div></div>
+    <div class="sec-bd">
+      <div class="sliders">
+        <div class="r"><label for="massa">Peso</label><input id="massa" type="range" min="1600" max="2250" step="10" value="2100"><output id="massaV">2.100 kg</output></div>
+        <div class="r"><label for="alt">Altitude</label><input id="alt" type="range" min="0" max="3000" step="50" value="500"><output id="altV">500 m</output></div>
+      </div>
+      <div class="tqm">
+        <div class="kv"><div class="k">Tração T = m·g</div><div class="v" id="tT">–</div></div>
+        <div class="kv kv-x"><div class="k">Densidade do ar ρ</div><div class="v" id="tRho">–</div></div>
+        <div class="kv kv-x"><div class="k">Carga do disco DL</div><div class="v" id="tDL">–</div></div>
+        <div class="kv"><div class="k">Velocidade induzida u</div><div class="v" id="tU">–</div></div>
+        <div class="kv"><div class="k">Potência ideal T·u</div><div class="v" id="tPi">–</div></div>
+        <div class="kv"><div class="k">Potência no eixo prevista</div><div class="v" id="tPp">–</div></div>
+        <div class="kv hl"><div class="k">Figura de mérito prevista</div><div class="v">0,780</div></div>
+        <div class="kv hl"><div class="k">Figura de mérito medida</div><div class="v" id="tFM">–</div></div>
+      </div>
+      <div class="formula"><b>u</b> = √(T / 2ρA) &nbsp; <b>w</b> = 2u<br><b>P<sub>ideal</sub></b> = T·u &nbsp; <b>FM</b> = P<sub>ideal</sub> / P<sub>eixo</sub><br><b>DL</b> = T / A, com A = π·R² = 89,75 m²</div>
+    </div>
+  </section>
+</div>
+
+<section class="sec" id="secErp">
+  <div class="sec-hd"><div class="num">4</div><div><h2>Decisão: ERP integrado</h2><p>Um alerta do gêmeo digital movimenta vários setores na mesma base de dados</p></div></div>
+  <div class="sec-bd erp">
+    <div>
+      <svg class="hub" viewBox="0 0 520 440" role="img" aria-label="ERP no centro ligado aos setores da empresa">
+        <defs><radialGradient id="core" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#2f8cff"/><stop offset="100%" stop-color="#0f3a70"/></radialGradient></defs>
+        <g id="spokes"></g>
+        <g id="mods"></g>
+        <circle cx="260" cy="220" r="70" fill="url(#core)" stroke="#3fc3ff" stroke-width="2"/>
+        <text x="260" y="218" text-anchor="middle" fill="#fff" style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:40px">ERP</text>
+        <text x="260" y="240" text-anchor="middle" fill="#cfe0f5" style="font-family:Barlow,sans-serif;font-size:13px">base de dados única</text>
+      </svg>
+      <h4>Integração em tempo real</h4>
+      <ul class="feed" id="feed"><li><time>0 h</time><span>Aguardando o primeiro voo.</span></li></ul>
+    </div>
+    <div style="min-width:0">
+      <div class="kpis">
+        <div class="kpi" id="kDispB"><div class="k">Disponibilidade</div><div class="v" id="kDisp">100%</div></div>
+        <div class="kpi good"><div class="k">Paradas evitadas</div><div class="v" id="kEvit">0</div></div>
+        <div class="kpi" id="kAogB"><div class="k">Paradas no chão</div><div class="v" id="kAog">0</div></div>
+        <div class="kpi"><div class="k">Custo de manutenção</div><div class="v" id="kCusto">R$ 0</div></div>
+      </div>
+      <h4>Ordens de manutenção · Serviços</h4>
+      <div class="tbl"><table><thead><tr><th>OS</th><th>Peça · série</th><th>Motivo</th><th>Situação</th><th></th></tr></thead><tbody id="osBody"></tbody></table></div>
+      <div class="empty" id="osEmpty">Nenhuma ordem ainda. Clique em Voar e simule uma falha numa peça.</div>
+      <h4>Estoque · Suprimentos</h4>
+      <div class="stock" id="stock"></div>
+      <div class="tbl"><table><thead><tr><th>Pedido de compra</th><th>Item</th><th>Situação</th></tr></thead><tbody id="pcBody"></tbody></table></div>
+      <div class="empty" id="pcEmpty">Nenhum pedido de compra.</div>
+    </div>
+  </div>
+</section>
+
+<footer><span><b>Equipe F-ATLAS</b> · Integração de Manufatura e Sistemas · Fatec São José dos Campos</span><span>Exercício acadêmico. Sensores, desgaste e custos são simulados; valores em reais são ilustrativos.</span></footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const C={ok:'#3ddc84',warn:'#ffb627',crit:'#ff5a4e',cyan:'#3fc3ff',blue:'#4c8dff',red:'#ff5a4e',muted:'#93a9c4',line:'#1f3d63',ink:'#eaf2fb'};
+const fmt=(x,d=0)=>{let r=Number(x.toFixed(d)); if(Object.is(r,-0)) r=0; return r.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});};
+const brl=x=>'R$ '+fmt(x,0);
+
+/* ---------- modelo ---------- */
+const R=5.345, A=Math.PI*R*R, FMnom=0.78, g=9.81;
+const PARTS=[
+ {id:'placa',nome:'Placa oscilante',serie:'PO-2611-0042',sensor:'Vibração 1/rev',unit:'mm/s',base:2.0,gain:6.0,lim:[5.0,7.0],rate:1/1300,dec:1,custo:40600,falha:'Folga no rolamento da placa'},
+ {id:'cubo',nome:'Cubo do rotor',serie:'CB-2611-0017',sensor:'Deformação',unit:'µε',base:420,gain:500,lim:[700,850],rate:1/2320,dec:0,custo:28400,falha:'Trinca por fadiga no braço'},
+ {id:'chifre',nome:'Chifre do passo',serie:'CP-2611-0108',sensor:'Erro do ângulo do passo',unit:'°',base:0.10,gain:1.4,lim:[0.75,1.15],rate:1/1940,dec:2,custo:15000,falha:'Folga na bucha do chifre'},
+ {id:'rolamento',nome:'Rolamento de passo',serie:'RP-2610-0533',sensor:'Temperatura',unit:'°C',base:45,gain:40,lim:[65,78],rate:1/800,dec:1,custo:6000,falha:'Desgaste das pistas'},
+ {id:'pas',nome:'Pás do rotor',serie:'PA-2609-0004',sensor:'Figura de mérito',unit:'',base:0.78,gain:-0.075,lim:[0.745,0.725],rate:1/4700,dec:3,custo:90000,falha:'Erosão do bordo de ataque',inv:true}
+];
+const STOCK0={placa:1,cubo:0,chifre:2,rolamento:3,pas:1};
+let S;
+function init(){
+  S={h:0,playing:false,sp:10,down:0,aog:null,custo:0,evit:0,aogN:0,osN:0,pcN:0,os:[],pc:[],stock:{...STOCK0},sel:'placa',hist:[],acc:0,reads:0,feed:[],w:{},fault:{},val:{}};
+  PARTS.forEach(p=>{S.w[p.id]=0;S.fault[p.id]=false;S.val[p.id]=p.base;});
+}
+init();
+const rho=hm=>1.225*Math.pow(1-2.25577e-5*hm,4.2559);
+const sensorOf=(p,w)=>p.base+p.gain*w;
+function status(p,v){ if(p.inv){return v<=p.lim[1]?'crit':v<=p.lim[0]?'warn':'ok';} return v>=p.lim[1]?'crit':v>=p.lim[0]?'warn':'ok';}
+const wAt=(p,lim)=>(lim-p.base)/p.gain;
+const effRate=p=>p.rate*(S.fault[p.id]?22:1);
+const lifeLeft=p=>Math.max(0,(wAt(p,p.lim[1])-S.w[p.id])/effRate(p));
+const used=p=>Math.min(1,S.w[p.id]/wAt(p,p.lim[1]));
+function physics(){
+  const m=+$('massa').value, alt=+$('alt').value, r=rho(alt), T=m*g, u=Math.sqrt(T/(2*r*A)), Pi=T*u/1000, fm=S.val.pas;
+  return {m,alt,r,T,u,Pi,Pp:Pi/FMnom,Pm:Pi/fm,fm,DL:T/A};
+}
+const noise=s=>(Math.random()-.5)*2*s;
+
+/* ---------- ERP ---------- */
+const MODS=[
+ {id:'vendas',n:'Vendas',s:'pedidos'},{id:'eng',n:'Engenharia',s:'CAD e BOM'},{id:'prod',n:'Produção',s:'ordens'},{id:'sup',n:'Suprimentos',s:'estoque e compras'},
+ {id:'qual',n:'Qualidade',s:'rastreabilidade'},{id:'fin',n:'Financeiro',s:'custos'},{id:'serv',n:'Serviços',s:'manutenção'},{id:'rh',n:'RH',s:'equipe'}];
+(function buildHub(){
+  const cx=260,cy=220,rx=192,ry=172, sp=$('spokes'), md=$('mods');
+  MODS.forEach((m,i)=>{const a=-Math.PI/2+i*2*Math.PI/MODS.length, x=cx+rx*Math.cos(a), y=cy+ry*Math.sin(a);
+    sp.insertAdjacentHTML('beforeend',`<line class="spoke" data-m="${m.id}" x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`);
+    md.insertAdjacentHTML('beforeend',`<g class="mod" data-m="${m.id}"><rect x="${(x-64).toFixed(1)}" y="${(y-26).toFixed(1)}" width="128" height="52" rx="8"/><text x="${x.toFixed(1)}" y="${(y-3).toFixed(1)}" text-anchor="middle">${m.n}</text><text class="s" x="${x.toFixed(1)}" y="${(y+16).toFixed(1)}" text-anchor="middle">${m.s}</text></g>`);
+  });
+})();
+const litUntil={};
+function flash(ids){const t=performance.now()+2600; ids.forEach(i=>litUntil[i]=t);}
+function hubTick(now){MODS.forEach(m=>{const on=(litUntil[m.id]||0)>now; document.querySelectorAll(`[data-m="${m.id}"]`).forEach(el=>el.classList.toggle('lit',on));});}
+function log(cls,txt){S.feed.unshift({h:S.h,cls,txt}); if(S.feed.length>6)S.feed.pop(); renderFeed();}
+function renderFeed(){ if(!S.feed.length){$('feed').innerHTML='<li><time>0 h</time><span>Aguardando o primeiro voo.</span></li>';return;}
+  $('feed').innerHTML=S.feed.map(f=>`<li class="${f.cls}"><time>${fmt(f.h,0)} h</time><span>${f.txt}</span></li>`).join('');}
+function openOS(p,motivo){
+  if(S.os.some(o=>o.part===p.id&&o.sit!=='Concluída'))return;
+  S.osN++; const num='OS-'+String(S.osN).padStart(3,'0');
+  const o={num,part:p.id,motivo,h:S.h,sit:'Aberta'};
+  log('w',`<b>Serviços</b> abriu ${num}: ${p.nome.toLowerCase()} (${p.serie}).`); flash(['serv','sup']);
+  if(S.stock[p.id]<=0){o.sit='Aguardando peça'; S.pcN++; const pc={num:'PC-'+String(S.pcN).padStart(3,'0'),part:p.id,h:S.h,sit:'Com o fornecedor',chega:S.h+40};S.pc.push(pc);
+    log('w',`<b>Suprimentos</b>: estoque zero, gerou ${pc.num}. <b>Financeiro</b> reservou ${brl(p.custo)}.`); flash(['sup','fin']);}
+  else log('',`<b>Suprimentos</b> reservou 1 ${p.nome.toLowerCase()} do estoque.`);
+  S.os.push(o);
+}
+function execOS(num){
+  const o=S.os.find(x=>x.num===num); if(!o||o.sit!=='Aberta')return; const p=PARTS.find(x=>x.id===o.part);
+  const wasCrit=status(p,S.val[p.id])==='crit';
+  S.stock[p.id]--; S.w[p.id]=0; S.fault[p.id]=false; S.val[p.id]=p.base; S.custo+=p.custo; S.down+=4; o.sit='Concluída'; o.fim=S.h;
+  if(!wasCrit) S.evit++;
+  if(S.aog===p.id) S.aog=null;
+  log('g',`${num} concluída. <b>Qualidade</b> registrou a peça nova; <b>Financeiro</b> lançou ${brl(p.custo)}.`); flash(['serv','qual','fin','prod']);
+  renderAll();
+}
+function tickERP(){
+  S.pc.forEach(c=>{ if(c.sit==='Com o fornecedor'&&S.h>=c.chega){c.sit='Recebido';S.stock[c.part]++;
+    S.os.forEach(o=>{if(o.part===c.part&&o.sit==='Aguardando peça')o.sit='Aberta';});
+    const p=PARTS.find(x=>x.id===c.part); log('',`${c.num} recebido. <b>Qualidade</b> inspecionou o ${p.nome.toLowerCase()}.`); flash(['sup','qual']);}});
+}
+
+/* ---------- simulação ---------- */
+let last=performance.now();
+function step(dtH){
+  S.h+=dtH;
+  PARTS.forEach(p=>{
+    S.w[p.id]=Math.min(1.15,S.w[p.id]+effRate(p)*dtH);
+    const st=status(p,sensorOf(p,S.w[p.id]));
+    if(st!=='ok') openOS(p,(S.fault[p.id]?p.falha:'Desgaste natural')+': '+p.sensor.toLowerCase()+' passou do limite de atenção');
+    if(st==='crit'&&!S.aog){S.aog=p.id;S.aogN++;S.playing=false; log('c',`Parada não programada: ${p.nome.toLowerCase()} no limite crítico.`);}
+  });
+  tickERP();
+}
+function sample(){
+  PARTS.forEach(p=>{S.val[p.id]=sensorOf(p,S.w[p.id])+noise(Math.abs(p.gain)*0.03);});
+  S.reads+=PARTS.length*90;
+  const ph=physics();
+  S.hist.push({h:S.h,Pp:ph.Pp,Pm:ph.Pm+noise(1.5),v:Object.fromEntries(PARTS.map(p=>[p.id,S.val[p.id]]))});
+  if(S.hist.length>500)S.hist.shift();
+}
+function loop(now){
+  const dt=Math.min(0.1,(now-last)/1000); last=now;
+  if(S.playing){ let dh=dt*S.sp; while(dh>0&&S.playing){const d=Math.min(dh,2); step(d); dh-=d; S.acc+=d; if(S.acc>=1.5){S.acc=0;sample();}} renderAll(); }
+  hubTick(now);
+  if(three) three.frame(dt);
+  requestAnimationFrame(loop);
+}
+
+/* ---------- peças e medidores ---------- */
+const partsEl=$('parts');
+partsEl.innerHTML=PARTS.map(p=>`<article class="part" data-id="${p.id}" tabindex="0" aria-label="${p.nome}">
+<h3>${p.nome}<span class="pill ok" data-pill>normal</span></h3>
+<div class="sn">Nº de série ${p.serie}</div>
+${p.inv?'<div class="sn" style="color:var(--cyan)">Complemento do modelo TQM</div>':''}
+<canvas class="gauge" data-g width="190" height="104" role="img" aria-label="Medidor: ${p.sensor}"></canvas>
+<div class="sl">${p.sensor}</div>
+<div class="life" data-life>–</div>
+<div class="fl">${p.falha}</div>
+<button data-f="${p.id}" aria-pressed="false">Simular falha</button>
+</article>`).join('');
+partsEl.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-f]');
+  if(b){const id=b.dataset.f; S.fault[id]=!S.fault[id]; const p=PARTS.find(x=>x.id===id); if(S.fault[id])log('c',`Falha simulada: ${p.falha.toLowerCase()}.`); renderParts(); renderFeed(); return;}
+  const c=e.target.closest('.part'); if(c)select(c.dataset.id);
+});
+partsEl.addEventListener('keydown',e=>{if(e.key==='Enter'){const c=e.target.closest('.part');if(c)select(c.dataset.id);}});
+function select(id){S.sel=id;renderParts();drawSens();if(three)three.highlight(id);}
+
+function drawGauge(cv,p,v){
+  const d=window.devicePixelRatio||1, W=190,H=104; if(cv.width!==W*d){cv.width=W*d;cv.height=H*d;}
+  const x=cv.getContext('2d'); x.setTransform(d,0,0,d,0,0); x.clearRect(0,0,W,H);
+  const cx=95,cy=66,r=56; const lo=p.inv?p.lim[1]-(p.base-p.lim[1])*.35:p.base-(p.lim[1]-p.base)*.15, hi=p.inv?p.base+.005:p.lim[1]+(p.lim[1]-p.base)*.3;
+  const a=val=>Math.PI+Math.max(0,Math.min(1,(val-lo)/(hi-lo)))*Math.PI;
+  const band=(v0,v1,col)=>{x.beginPath();x.strokeStyle=col;x.lineWidth=11;x.arc(cx,cy,r,a(v0),a(v1));x.stroke();};
+  x.lineCap='butt';
+  if(p.inv){band(lo,p.lim[1],C.crit);band(p.lim[1],p.lim[0],C.warn);band(p.lim[0],hi,C.ok);}
+  else{band(lo,p.lim[0],C.ok);band(p.lim[0],p.lim[1],C.warn);band(p.lim[1],hi,C.crit);}
+  x.globalAlpha=.25;x.beginPath();x.strokeStyle='#000';x.lineWidth=11;x.arc(cx,cy,r-11,Math.PI,2*Math.PI);x.stroke();x.globalAlpha=1;
+  for(let i=0;i<=10;i++){const t=Math.PI+i/10*Math.PI;x.beginPath();x.strokeStyle='rgba(234,242,251,.35)';x.lineWidth=1;x.moveTo(cx+(r-18)*Math.cos(t),cy+(r-18)*Math.sin(t));x.lineTo(cx+(r-(i%5?22:26))*Math.cos(t),cy+(r-(i%5?22:26))*Math.sin(t));x.stroke();}
+  const t=a(v), st=status(p,v), col=C[st];
+  x.save();x.shadowColor=col;x.shadowBlur=8;x.strokeStyle='#fff';x.lineWidth=2.5;x.lineCap='round';x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+(r-6)*Math.cos(t),cy+(r-6)*Math.sin(t));x.stroke();x.restore();
+  x.fillStyle='#fff';x.beginPath();x.arc(cx,cy,4.5,0,7);x.fill();
+  x.font='600 22px "JetBrains Mono",monospace'; const vs=fmt(v,p.dec), vw=x.measureText(vs).width; x.font='13px "JetBrains Mono",monospace'; const uw=p.unit?x.measureText(' '+p.unit).width:0; const x0=cx-(vw+uw)/2;
+  x.textAlign='left'; x.fillStyle=col; x.font='600 22px "JetBrains Mono",monospace'; x.fillText(vs,x0,cy+31);
+  if(p.unit){x.fillStyle=C.muted;x.font='13px "JetBrains Mono",monospace';x.fillText(' '+p.unit,x0+vw,cy+31);}
+}
+function renderParts(){
+  PARTS.forEach(p=>{
+    const el=partsEl.querySelector(`[data-id="${p.id}"]`), v=S.val[p.id], st=S.aog===p.id?'crit':status(p,v);
+    el.dataset.st=st; el.classList.toggle('sel',S.sel===p.id);
+    const pill=el.querySelector('[data-pill]'); pill.className='pill '+st; pill.textContent={ok:'normal',warn:'atenção',crit:'crítico'}[st];
+    drawGauge(el.querySelector('[data-g]'),p,v);
+    el.querySelector('[data-life]').textContent= st==='crit'?'Limite crítico atingido':`Vida restante: ${fmt(lifeLeft(p),0)} h`;
+    const b=el.querySelector('button'); b.classList.toggle('on',S.fault[p.id]); b.setAttribute('aria-pressed',S.fault[p.id]);
+    b.textContent=S.fault[p.id]?'Falha ativa':'Simular falha'; b.title=p.falha;
+    if(three)three.color(p.id,used(p));
+  });
+}
+function renderTQM(){
+  const ph=physics();
+  $('tT').innerHTML=fmt(ph.T,0)+' <small>N</small>';
+  $('tRho').innerHTML=fmt(ph.r,3)+' <small>kg/m³</small>';
+  $('tDL').innerHTML=fmt(ph.DL,0)+' <small>N/m²</small>';
+  $('tU').innerHTML=fmt(ph.u,1)+' <small>m/s</small>';
+  $('tPi').innerHTML=fmt(ph.Pi,0)+' <small>kW</small>';
+  $('tPp').innerHTML=fmt(ph.Pp,0)+' <small>kW</small>';
+  $('tFM').textContent=fmt(ph.fm,3);
+  const gap=ph.Pm-ph.Pp, el=$('tGap');
+  el.textContent= gap>3?`Δ ${fmt(gap,0)} kW: o rotor gasta mais potência que o previsto para o mesmo peso.`:`Δ ${fmt(gap,0)} kW: medido e previsto andam juntos.`;
+  el.style.color= gap>12?C.crit:gap>3?C.warn:C.ok;
+  return {ph,gap};
+}
+function renderERP(){
+  const rows=S.os.slice().reverse(); $('osEmpty').hidden=rows.length>0;
+  $('osBody').innerHTML=rows.map(o=>{const p=PARTS.find(x=>x.id===o.part);
+    const act=o.sit==='Aberta'?`<button data-os="${o.num}">Executar</button>`:'';
+    const sit=o.sit==='Concluída'?`Concluída em ${fmt(o.fim,0)} h`:o.sit;
+    return `<tr><td class="mono">${o.num}<br>${fmt(o.h,0)} h</td><td>${p.nome}<br><span class="mono" style="color:${C.muted}">${p.serie}</span></td><td>${o.motivo}</td><td>${sit}</td><td>${act}</td></tr>`;}).join('');
+  $('stock').innerHTML=PARTS.map(p=>`<span class="${S.stock[p.id]?'':'zero'}">${p.nome}: <b>${S.stock[p.id]}</b></span>`).join('');
+  $('pcEmpty').hidden=S.pc.length>0;
+  $('pcBody').innerHTML=S.pc.slice().reverse().map(c=>{const p=PARTS.find(x=>x.id===c.part);return `<tr><td class="mono">${c.num}</td><td>${p.nome}</td><td>${c.sit==='Recebido'?'Recebido no estoque':'Com o fornecedor (chega em '+fmt(c.chega,0)+' h)'}</td></tr>`;}).join('');
+  const disp=S.h>0?S.h/(S.h+S.down+(S.aogN*48))*100:100;
+  $('kDisp').textContent=fmt(disp,1)+'%'; $('kEvit').textContent=S.evit; $('kAog').textContent=S.aogN; $('kCusto').textContent=brl(S.custo);
+  $('kAogB').classList.toggle('bad',S.aogN>0); $('kDispB').classList.toggle('bad',disp<95);
+}
+$('osBody').addEventListener('click',e=>{const b=e.target.closest('button[data-os]'); if(b)execOS(b.dataset.os);});
+function renderFlow(gap){
+  const sts=PARTS.map(p=>status(p,S.val[p.id])); const worst=sts.includes('crit')?'alarm':sts.includes('warn')?'alert':'';
+  const openN=S.os.filter(o=>o.sit!=='Concluída').length;
+  $('f2').textContent=fmt(S.reads,0)+' leituras';
+  $('f3').textContent='FM '+fmt(FMnom,3);
+  $('f4').textContent='Δ '+(gap>=0?'+':'')+fmt(gap,0)+' kW';
+  $('f5').textContent=openN?`${openN} ${openN>1?'ordens abertas':'ordem aberta'}`:`${S.os.length} ${S.os.length===1?'ordem':'ordens'}`;
+  ['st1','st2','st3'].forEach(i=>$(i).className='stage'+(S.playing?' live':''));
+  $('st1').className='stage'+(worst?' '+worst:S.playing?' live':'');
+  $('st4').className='stage'+(gap>12?' alarm':gap>3?' alert':S.playing?' live':'');
+  $('st5').className='stage'+(openN?' alert':S.playing?' live':'')+(S.aog?' alarm':'');
+}
+function renderAOG(){
+  const el=$('aog');
+  if(S.aog){const p=PARTS.find(x=>x.id===S.aog); el.style.display='block'; el.textContent=`Helicóptero no chão: ${p.nome.toLowerCase()} passou do limite crítico. Execute a ordem de manutenção para voltar a voar.`; $('play').disabled=true;}
+  else{el.style.display='none'; $('play').disabled=false;}
+  $('play').textContent=S.playing?'❚❚ Pausar':'▶ Voar';
+}
+function renderAll(){ $('horas').textContent=fmt(S.h,0); renderParts(); const {gap}=renderTQM(); renderERP(); renderAOG(); renderFlow(gap); renderFeed(); drawPow(); drawSens(); }
+
+/* ---------- gráficos ---------- */
+function setup(c){const r={width:c.clientWidth,height:c.clientHeight},d=Math.max(2,window.devicePixelRatio||1);c.width=Math.max(10,r.width*d);c.height=Math.max(10,r.height*d);const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);return {x,w:r.width,h:r.height};}
+function axes(ctx,w,h,lo,hi,h0,h1,dec,pad){
+  ctx.font=(document.body.classList.contains('painel')?'13px':'11px')+' "JetBrains Mono",monospace'; ctx.fillStyle=C.muted; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4, y=pad.t+(h-pad.t-pad.b)*(1-i/4); ctx.strokeStyle='rgba(76,141,255,.14)'; ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke(); ctx.textAlign='right'; ctx.fillText(fmt(v,dec),pad.l-8,y+4);}
+  ctx.textAlign='left'; ctx.fillText(fmt(h0,0)+' h',pad.l,h-4); ctx.textAlign='right'; ctx.fillText(fmt(h1,0)+' h',w-pad.r,h-4);
+}
+function path(ctx,pts,X,Y){ctx.beginPath();pts.forEach((p,i)=>{const x=X(p[0]),y=Y(p[1]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});}
+function glowLine(ctx,pts,X,Y,col,wid,dash){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=wid;ctx.setLineDash(dash||[]);ctx.shadowColor=col;ctx.shadowBlur=dash?0:10;path(ctx,pts,X,Y);ctx.stroke();ctx.restore();}
+function empty(ctx,w,h,pad,t){ctx.fillStyle=C.muted;ctx.font='13px Barlow,sans-serif';ctx.textAlign='left';ctx.fillText(t,pad.l,h/2);}
+function drawPow(){
+  const c=$('cPow'),{x:ctx,w,h}=setup(c),pad={l:52,r:12,t:10,b:22}; ctx.clearRect(0,0,w,h);
+  const H=S.hist; if(H.length<2)return empty(ctx,w,h,pad,'Clique em Voar para começar a gravar os dados do rotor.');
+  let lo=Infinity,hi=-Infinity; H.forEach(p=>{lo=Math.min(lo,p.Pp,p.Pm);hi=Math.max(hi,p.Pp,p.Pm);}); lo=Math.floor((lo-6)/5)*5; hi=Math.ceil((hi+6)/5)*5;
+  const h0=H[0].h,h1=H[H.length-1].h; const X=v=>pad.l+(v-h0)/(h1-h0||1)*(w-pad.l-pad.r), Y=v=>pad.t+(1-(v-lo)/(hi-lo))*(h-pad.t-pad.b);
+  axes(ctx,w,h,lo,hi,h0,h1,0,pad);
+  // faixa da diferença
+  ctx.beginPath(); H.forEach((p,i)=>{const x=X(p.h),y=Y(p.Pm); i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); for(let i=H.length-1;i>=0;i--){ctx.lineTo(X(H[i].h),Y(H[i].Pp));} ctx.closePath(); ctx.fillStyle='rgba(255,90,78,.16)'; ctx.fill();
+  // área sob o medido
+  const gr=ctx.createLinearGradient(0,pad.t,0,h-pad.b); gr.addColorStop(0,'rgba(255,90,78,.20)'); gr.addColorStop(1,'rgba(255,90,78,0)');
+  ctx.beginPath(); H.forEach((p,i)=>{const x=X(p.h),y=Y(p.Pm); i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.lineTo(X(h1),h-pad.b); ctx.lineTo(X(h0),h-pad.b); ctx.closePath(); ctx.fillStyle=gr; ctx.fill();
+  glowLine(ctx,H.map(p=>[p.h,p.Pp]),X,Y,C.blue,2,[7,5]);
+  glowLine(ctx,H.map(p=>[p.h,p.Pm]),X,Y,C.red,2.2);
+  const e=H[H.length-1]; ctx.save(); ctx.shadowColor=C.red; ctx.shadowBlur=12; ctx.fillStyle=C.red; ctx.beginPath(); ctx.arc(X(e.h),Y(e.Pm),4,0,7); ctx.fill(); ctx.restore();
+  ctx.fillStyle=C.red; ctx.font='600 12px "JetBrains Mono",monospace'; ctx.textAlign='right'; ctx.fillText(fmt(e.Pm,0)+' kW',X(e.h)-8,Y(e.Pm)-9);
+}
+function drawSens(){
+  const p=PARTS.find(x=>x.id===S.sel); $('cSensTitle').textContent=p.nome+' · '+p.sensor.toLowerCase(); $('cSensUnit').textContent=(p.unit?p.unit+' ':'')+'por hora de voo';
+  const c=$('cSens'),{x:ctx,w,h}=setup(c),pad={l:52,r:12,t:10,b:22}; ctx.clearRect(0,0,w,h);
+  const H=S.hist; if(H.length<2)return empty(ctx,w,h,pad,'Sem dados ainda. Toque numa peça para ver o sensor dela.');
+  let lo=Math.min(p.base,p.lim[1]),hi=Math.max(p.base,p.lim[1]); H.forEach(q=>{lo=Math.min(lo,q.v[p.id]);hi=Math.max(hi,q.v[p.id]);}); const m=(hi-lo)*0.14; lo-=m; hi+=m;
+  const h0=H[0].h,h1=H[H.length-1].h; const X=v=>pad.l+(v-h0)/(h1-h0||1)*(w-pad.l-pad.r), Y=v=>pad.t+(1-(v-lo)/(hi-lo))*(h-pad.t-pad.b);
+  // zonas
+  const zone=(a,b,col)=>{ctx.fillStyle=col;const y1=Y(Math.max(a,b)),y2=Y(Math.min(a,b));ctx.fillRect(pad.l,y1,w-pad.l-pad.r,y2-y1);};
+  if(p.inv){zone(p.lim[0],p.lim[1],'rgba(255,182,39,.07)');zone(p.lim[1],lo,'rgba(255,90,78,.09)');}else{zone(p.lim[0],p.lim[1],'rgba(255,182,39,.07)');zone(p.lim[1],hi,'rgba(255,90,78,.09)');}
+  axes(ctx,w,h,lo,hi,h0,h1,p.dec,pad);
+  glowLine(ctx,[[h0,p.lim[0]],[h1,p.lim[0]]],X,Y,C.warn,1.3,[5,4]);
+  glowLine(ctx,[[h0,p.lim[1]],[h1,p.lim[1]]],X,Y,C.crit,1.3,[5,4]);
+  glowLine(ctx,H.map(q=>[q.h,q.v[p.id]]),X,Y,C.cyan,2);
+}
+
+/* ---------- 3D ---------- */
+let three=null;
+function ramp(t){ // azul → ciano → verde → amarelo → vermelho, como no CAE
+  const stops=[[0,[30,77,255]],[.25,[24,200,255]],[.5,[61,220,132]],[.75,[255,210,63]],[1,[255,90,78]]];
+  t=Math.max(0,Math.min(1,t)); for(let i=1;i<stops.length;i++){if(t<=stops[i][0]){const [a,ca]=stops[i-1],[b,cb]=stops[i],f=(t-a)/(b-a);return ca.map((v,k)=>Math.round(v+(cb[k]-v)*f));}} return stops[4][1];
+}
+function build3D(){
+  if(!window.THREE)return null;
+  const host=$('scene'); let renderer;
+  try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});}catch(e){return null;}
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); host.prepend(renderer.domElement);
+  const scene=new THREE.Scene(), cam=new THREE.PerspectiveCamera(36,1,0.1,100);
+  scene.add(new THREE.HemisphereLight(0xbfdcff,0x0a1830,0.75));
+  const key=new THREE.DirectionalLight(0xffffff,0.9); key.position.set(5,9,6); scene.add(key);
+  const rim=new THREE.DirectionalLight(0x3fc3ff,0.9); rim.position.set(-6,3,-6); scene.add(rim);
+  // piso em grade
+  const grid=new THREE.GridHelper(16,32,0x1f5fa8,0x143a66); grid.position.y=-1.05; grid.material.transparent=true; grid.material.opacity=.45; scene.add(grid);
+  const mats={}, groups={placa:[],cubo:[],chifre:[],rolamento:[],pas:[]};
+  const mk=id=>{const m=new THREE.MeshStandardMaterial({color:0x1e4dff,metalness:.35,roughness:.38,emissive:0x000000}); mats[id]=m; return m;};
+  ['placa','cubo','chifre','rolamento','pas'].forEach(mk);
+  const add=(mesh,id,parent)=>{mesh.userData.part=id; groups[id].push(mesh); parent.add(mesh); return mesh;};
+  const steel=new THREE.MeshStandardMaterial({color:0x9aa7b4,metalness:.75,roughness:.3});
+  const dark=new THREE.MeshStandardMaterial({color:0x3a4654,metalness:.6,roughness:.45});
+  const mast=new THREE.Mesh(new THREE.CylinderGeometry(.11,.13,2.5,28),steel); mast.position.y=.45; scene.add(mast);
+  const gear=new THREE.Mesh(new THREE.CylinderGeometry(.5,.62,.4,36),dark); gear.position.y=-.8; scene.add(gear);
+  const fixed=add(new THREE.Mesh(new THREE.CylinderGeometry(.62,.62,.09,48),mats.placa),'placa',scene); fixed.position.y=.05;
+  const rot=new THREE.Group(); scene.add(rot);
+  const upper=add(new THREE.Mesh(new THREE.TorusGeometry(.56,.055,14,56),mats.placa),'placa',rot); upper.rotation.x=Math.PI/2; upper.position.y=.17;
+  const hubY=1.55;
+  const hubC=add(new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.28,28),mats.cubo),'cubo',rot); hubC.position.y=hubY;
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.14,.2,.16,20),steel); cap.position.y=hubY+.22; rot.add(cap);
+  for(let i=0;i<4;i++){
+    const a=i*Math.PI/2, arm=new THREE.Group(); arm.rotation.y=a; arm.position.y=hubY; rot.add(arm);
+    const br=add(new THREE.Mesh(new THREE.BoxGeometry(.62,.15,.22),mats.cubo),'cubo',arm); br.position.x=.55;
+    const bear=add(new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.24,24),mats.rolamento),'rolamento',arm); bear.rotation.z=Math.PI/2; bear.position.x=.96;
+    const grip=new THREE.Mesh(new THREE.BoxGeometry(.34,.13,.17),steel); grip.position.x=1.24; arm.add(grip);
+    const horn=add(new THREE.Mesh(new THREE.BoxGeometry(.11,.09,.34),mats.chifre),'chifre',arm); horn.position.set(.45,-.05,.3);
+    const blade=add(new THREE.Mesh(new THREE.BoxGeometry(4.2,.045,.32),mats.pas),'pas',arm); blade.position.x=1.4+2.1; blade.rotation.x=.07;
+    const tip=new THREE.Mesh(new THREE.BoxGeometry(.18,.05,.33),steel); tip.position.x=1.4+4.2+.09; tip.rotation.x=.07; arm.add(tip);
+    const rodL=hubY-.05-.17, rg=new THREE.Group(); rg.rotation.y=a; rot.add(rg);
+    const rod=new THREE.Mesh(new THREE.CylinderGeometry(.026,.026,rodL,10),steel); rod.position.set(.45,.17+rodL/2,.42); rg.add(rod);
+  }
+  const allMeshes=Object.values(groups).flat();
+  let selected='placa', t=0, yaw=.75, pitch=.36, dist=8.6, drag=null;
+  function resize(){const r={width:host.clientWidth,height:host.clientHeight}; if(!r.width||!r.height)return; renderer.setSize(r.width,r.height,false); cam.aspect=r.width/r.height; cam.updateProjectionMatrix();}
+  new ResizeObserver(resize).observe(host); resize();
+  const cv=renderer.domElement, ray=new THREE.Raycaster(), mp=new THREE.Vector2(); let moved=0;
+  cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};moved=0;cv.setPointerCapture(e.pointerId);});
+  cv.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;moved+=Math.abs(dx)+Math.abs(dy);yaw-=dx*.008;pitch=Math.max(-.05,Math.min(1.2,pitch+dy*.006));drag={x:e.clientX,y:e.clientY};});
+  cv.addEventListener('pointerup',e=>{drag=null; if(moved<6){const r=cv.getBoundingClientRect(); mp.x=(e.clientX-r.left)/r.width*2-1; mp.y=-(e.clientY-r.top)/r.height*2+1; ray.setFromCamera(mp,cam); const hit=ray.intersectObjects(allMeshes,false)[0]; if(hit)select(hit.object.userData.part);}});
+  cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(4.5,Math.min(13,dist+e.deltaY*.004));},{passive:false});
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return {
+    frame(dt){ rot.rotation.y+=(S.playing?(reduce?.6:8):(reduce?0:.35))*dt; t+=dt;
+      if(!drag&&!S.playing&&!reduce)yaw+=dt*.05;
+      cam.position.set(dist*Math.cos(pitch)*Math.sin(yaw),.95+dist*Math.sin(pitch),dist*Math.cos(pitch)*Math.cos(yaw)); cam.lookAt(0,.95,0);
+      Object.keys(mats).forEach(id=>{const m=mats[id]; if(id===selected){m.emissive.set(0x3fc3ff); m.emissiveIntensity=.18+.14*Math.sin(t*4);} else {m.emissive.set(0x000000); m.emissiveIntensity=0;}});
+      renderer.render(scene,cam);},
+    color(id,u){ const [r,g,b]=ramp(u); mats[id].color.setRGB(r/255,g/255,b/255); },
+    highlight(id){selected=id;}
+  };
+}
+try{three=build3D();}catch(e){three=null;}
+if(!three){const d=document.createElement('div');d.className='hud';d.style.cssText='left:14px;top:40px;right:14px';d.textContent='O desenho 3D não abriu neste aparelho; os painéis continuam funcionando.';$('scene').appendChild(d);}
+
+/* ---------- controles ---------- */
+$('play').addEventListener('click',()=>{if(S.aog)return;S.playing=!S.playing;last=performance.now(); if(S.playing&&S.h===0)log('','Decolagem: sensores enviando dados ao gêmeo digital.'); renderAll();});
+document.querySelectorAll('button[data-sp]').forEach(b=>b.addEventListener('click',()=>{S.sp=+b.dataset.sp;document.querySelectorAll('button[data-sp]').forEach(x=>x.setAttribute('aria-pressed',x===b));}));
+$('massa').addEventListener('input',()=>{$('massaV').textContent=fmt(+$('massa').value)+' kg';renderAll();});
+$('alt').addEventListener('input',()=>{$('altV').textContent=fmt(+$('alt').value)+' m';renderAll();});
+$('reset').addEventListener('click',()=>{init();renderAll();});
+window.addEventListener('resize',()=>{drawPow();drawSens();});
+
+const ALVOS={st1:['scene'],st2:['secPecas'],st3:['secTqm'],st4:['secComp'],st5:['secErp']};
+const DICA={st1:'Mostra o rotor 3D: a peça real com os sensores',st2:'Mostra os sensores das peças: os dados que chegam',st3:'Mostra o modelo TQM: o que a teoria prevê',st4:'Mostra os gráficos: previsto × medido',st5:'Mostra o ERP: ordens, estoque e compras'};
+Object.keys(ALVOS).forEach(id=>{const st=$(id); st.setAttribute('role','button'); st.setAttribute('tabindex','0'); st.title=DICA[id];
+  const go=()=>{ALVOS[id].forEach(t=>{const el=$(t); el.classList.remove('alvo'); void el.offsetWidth; el.classList.add('alvo'); if(!document.body.classList.contains('painel')) el.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>el.classList.remove('alvo'),2600);});};
+  st.addEventListener('click',go); st.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});
+const wrap=document.querySelector('.wrap');
+function fit(){
+  const iw=window.innerWidth, ih=window.innerHeight, on=iw>=1000 && iw/ih>=1.2;
+  document.body.classList.toggle('painel',on);
+  if(on){const H0=960; const W=Math.max(1350,Math.min(2400,H0*iw/ih)); const sc=Math.min(iw/W,ih/H0); wrap.style.height=H0+'px'; document.body.classList.toggle('estreito',W<1850); wrap.style.width=W+'px'; wrap.style.transform='scale('+sc+')'; wrap.style.left=((iw-W*sc)/2)+'px'; wrap.style.top=((ih-H0*sc)/2)+'px';}
+  else{wrap.style.transform='';wrap.style.left='';wrap.style.top='';wrap.style.width='';wrap.style.height='';}
+  drawPow();drawSens();renderParts();
+}
+window.addEventListener('resize',fit);
+sample(); S.reads=0; fit(); renderAll(); requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
