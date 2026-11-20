@@ -443,7 +443,7 @@ const rho=hm=>1.225*Math.pow(1-2.25577e-5*hm,4.2559);
 const sensorOf=(p,w)=>p.base+p.gain*w;
 function status(p,v){ if(p.inv){return v<=p.lim[1]?'crit':v<=p.lim[0]?'warn':'ok';} return v>=p.lim[1]?'crit':v>=p.lim[0]?'warn':'ok';}
 const wAt=(p,lim)=>(lim-p.base)/p.gain;
-const effRate=p=>p.rate*(S.fault[p.id]?22:1);
+const effRate=p=>p.rate*(S.fault[p.id]?10:1);
 const lifeLeft=p=>Math.max(0,(wAt(p,p.lim[1])-S.w[p.id])/effRate(p));
 const used=p=>Math.min(1,S.w[p.id]/wAt(p,p.lim[1]));
 function physics(){
@@ -491,7 +491,7 @@ function execOS(num){
 function tickERP(){
   S.pc.forEach(c=>{ if(c.sit==='Com o fornecedor'&&S.h>=c.chega){c.sit='Recebido';S.stock[c.part]++;
     S.os.forEach(o=>{if(o.part===c.part&&o.sit==='Aguardando peça')o.sit='Aberta';});
-    const p=PARTS.find(x=>x.id===c.part); log('',`${c.num} recebido. <b>Qualidade</b> inspecionou o ${p.nome.toLowerCase()}.`); flash(['sup','qual']);}});
+    const p=PARTS.find(x=>x.id===c.part); S.playing=false; log('',`${c.num} recebido. <b>Qualidade</b> inspecionou o ${p.nome.toLowerCase()}. Voo pausado: clique em <b>Executar</b> na ordem de manutenção.`); flash(['sup','qual']);}});
 }
 
 /* ---------- simulação ---------- */
